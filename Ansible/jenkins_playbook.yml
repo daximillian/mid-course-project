@@ -1,0 +1,143 @@
+---
+- hosts: servers, all_nodes
+  become: yes
+  become_method: sudo
+  vars: 
+    keys_path: ./keys
+  tasks:
+    - include_role:
+        name: docker
+    
+    - name: Flush docker handlers.
+      meta: flush_handlers
+
+    - name: Install Java for RedHat on all nodes.
+      yum:
+        name:
+        - java-1.8.0
+        state: present
+        update_cache: yes
+      when: inventory_hostname in groups['all_nodes'] and ansible_os_family == 'RedHat'
+    
+    - name: Install Java for Debian on all nodes.
+      apt:
+        name:
+        - openjdk-8-jdk
+        state: present
+        update_cache: yes
+      when: inventory_hostname in groups['all_nodes'] and ansible_os_family == 'Debian'
+  
+    - name: Copy jenkins docker YAML file
+      copy:
+        src: ./jenkins.yml
+        dest: ~/jenkins.yml
+      when: inventory_hostname in groups['servers'] 
+
+    - name: Run Jenkins
+      script:
+        cmd: ./run_jenkins.sh
+      when: inventory_hostname in groups['servers'] 
+
+    - name: Add an apt signing key for Kubernetes
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+      when: inventory_hostname in groups['all_nodes'] and ansible_os_family == 'Debian'
+
+    - name: Adding apt repository for Kubernetes
+      apt_repository:
+        repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+        state: present
+        filename: kubernetes.list
+      when: inventory_hostname in groups['all_nodes'] and ansible_os_family == 'Debian'
+
+    - name: Install kubectl
+      apt: 
+        name: 
+        - kubectl
+        state: present
+        update_cache: yes  
+      when: inventory_hostname in groups['all_nodes'] and ansible_os_family == 'Debian'
+
+    - name: Install iam authenticator
+      get_url:
+        url: https://amazon-eks.s3-us-west-2.amazonaws.com/1.14.6/2019-08-22/bin/linux/amd64/aws-iam-authenticator
+        dest: /usr/bin/aws-iam-authenticator
+        mode: '0755'
+      when: inventory_hostname in groups['all_nodes']
+
+    - name: Install aws cli
+      pip: 
+        name: 
+        - awscli
+        state: present  
+      when: inventory_hostname in groups['all_nodes']
+
+    - name: Create SSH key and known host key for node
+      script:
+        cmd: ./create_SSH_key.sh
+      when: inventory_hostname in groups['all_nodes'] 
+
+    - name: Fetch the know host key to local machine
+      fetch:
+        src: "/home/ubuntu/.ssh/{{ansible_user}}_known_host.pub"
+        dest: "keys/{{ansible_user}}_known_host.pub"
+        flat: yes
+      when: inventory_hostname in groups['all_nodes']  
+
+    - name: Copy known host key to Jenkins master
+      copy:
+        src: "{{keys_path}}/{{ansible_user}}_known_host.pub"
+        dest: "/home/{{ansible_user}}/.ssh/{{ansible_user}}_known_host.pub"
+      when: inventory_hostname in groups['servers']
+
+    - name: Copy create node credentials script
+      copy:
+        src: ./create_credentials.py
+        dest: /home/ubuntu/create_credentials.py
+        mode: '0755'
+      when: inventory_hostname in groups['all_nodes']  
+
+    - name: Creates directory
+      file:
+        path: /var/jenkins_home/.ssh
+        state: directory
+        mode: '0755'
+      when: inventory_hostname in groups['servers'] 
+
+    - name: Update Jenkins master known hosts
+      shell: cat "/home/{{ansible_user}}/.ssh/{{ansible_user}}_known_host.pub" >> /var/jenkins_home/.ssh/known_hosts
+      when: inventory_hostname in groups['servers'] 
+
+    - name: Wait for port 8080 to become open on the jenkins master.
+      wait_for:
+        port: 8080
+        delay: 10
+      when: inventory_hostname in groups['servers'] 
+
+    - name: Create node credentials
+      shell: /home/ubuntu/create_credentials.py {{master_ip}} "/home/{{ansible_user}}/.ssh/{{ansible_user}}_rsa"
+      when: inventory_hostname in groups['all_nodes'] 
+
+    - name: Copy create node script
+      copy:
+        src: ./create_ssh_node.sh
+        dest: /home/ubuntu/create_ssh_node.sh
+        mode: '0755'
+      when: inventory_hostname in groups['all_nodes']       
+
+    - name: Create node 
+      shell: echo "y" | /home/ubuntu/create_ssh_node.sh -j "http://{{master_ip}}:8080" -n "{{ansible_user}}-node" -d "{{ansible_user}}-node" -sh {{inventory_hostname}} -s "/home/{{ansible_user}}/jenkins" -c {{ansible_user}} -l linux -u admin -p admin
+      when: inventory_hostname in groups['all_nodes']
+
+    - name: Copy kubeconfig to node
+      copy:
+        src: "{{ item }}"
+        dest: /home/ubuntu/kubeconfig_opsSchool-eks
+        mode: 0755
+      with_fileglob:
+        - ../terraform/global/VPC/kubeconfig_*
+      when: inventory_hostname in groups['all_nodes']
+
+    
+  

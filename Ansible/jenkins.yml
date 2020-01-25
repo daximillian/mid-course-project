@@ -1,0 +1,19 @@
+version: '3.1'
+
+services:
+
+  main:
+    image: daximillian/jenkins
+    ports:
+      - 8080:8080
+      - 50000:50000
+    dns: 8.8.8.8
+    secrets:
+      - jenkins-user
+      - jenkins-pass
+
+secrets:
+  jenkins-user:
+    external: true
+  jenkins-pass:
+    external: true

@@ -1,5 +1,0 @@
-terraform init
-terraform validate
-terraform plan -out VPC_demo.tfplan
-terraform apply "VPC_demo.tfplan"
-terraform destroy

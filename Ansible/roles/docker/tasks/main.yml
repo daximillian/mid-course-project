@@ -1,0 +1,143 @@
+---
+- name: Create docker group
+  group:
+    name: docker
+
+- name: Ensure old versions of Docker are not installed.
+  package:
+    name:
+      - docker
+      - docker-client
+      - docker-client-latest
+      - docker-common
+      - docker-latest
+      - docker-latest-logrotate
+      - docker-logrotate
+      - docker-engine
+    state: absent
+  become: true
+  ignore_errors: yes
+  when: ansible_os_family == 'RedHat'
+
+- name: Ensure dependencies are installed.
+  package:
+    name:
+      - yum-utils
+      - device-mapper-persistent-data
+      - lvm2
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Add Docker GPG key.
+  rpm_key:
+    key: https://download.docker.com/linux/centos/gpg
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Add Docker repository.
+  get_url:
+    url:  https://download.docker.com/linux/centos/docker-ce.repo
+    dest: /etc/yum.repos.d/docker-ce.repo
+    owner: root
+    group: root
+    mode: 0644
+  when: ansible_os_family == 'RedHat'
+
+- name: Add the docker group to ec2-user
+  user:
+    name: ec2-user
+    append: yes
+    group: docker
+  when: ansible_os_family == 'RedHat'
+
+- name: Install containerd separately (CentOS 8).
+  package:
+    name: https://download.docker.com/linux/centos/7/x86_64/stable/Packages/containerd.io-1.2.6-3.3.el7.x86_64.rpm
+    state: present
+  when: ansible_distribution_major_version | int == 8
+
+- name: Ensure old versions of Docker are not installed.
+  package:
+    name:
+      - docker
+      - docker-engine
+    state: absent
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Ensure dependencies are installed.
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - software-properties-common
+      - gnupg-agent
+    state: present
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Add Docker apt key.
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Add Docker repository.
+  apt_repository:
+    repo: deb [arch=amd64] https://download.docker.com/linux/{{ansible_distribution|lower}} {{ansible_distribution_release}} stable
+    state: present
+    update_cache: true
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Add the docker group to ubuntu
+  user:
+    name: ubuntu
+    append: yes
+    group: docker
+  when: ansible_distribution == 'Ubuntu'
+
+- name: Install version specific Docker on Ubuntu.
+  package:
+    name: 
+    - containerd.io
+    - "docker-ce={{ docker_ubuntu_version }}" 
+    - docker-ce-cli 
+    state: present
+  when: docker_ubuntu_version is defined and ansible_distribution == "Ubuntu"
+  notify: Restart docker
+
+
+- name: Install version specific Docker on RedHat.
+  package:
+    name: 
+    - containerd.io
+    - "docker-ce-{{docker_redhat_version}}" 
+    - "docker-ce-cli-{{docker_redhat_version}}" 
+    state: present
+  when: docker_redhat_version is defined and ansible_os_family == 'RedHat'
+  notify: Restart docker
+
+- name: Install Docker.
+  package:
+    name: 
+    - containerd.io
+    - docker-ce 
+    - docker-ce-cli
+    state: present
+  when: docker_version is undefined
+  notify: Restart docker
+
+- name: Ensure Docker is started and enabled at boot.
+  service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Ensure docker users are added to the docker group.
+  user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  with_items: "{{ docker_users }}"
+  when: docker_users | length > 0

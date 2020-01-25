@@ -1,0 +1,14 @@
+In Ansible directory
+
+chmod 400 ../terraform/global/VPC/VPC-demo-key.pem
+ansible all -i ../terraform/global/VPC/hosts.INI -m ping
+ansible-playbook jenkins_playbook.yml -i ../terraform/global/VPC/hosts.INI 
+
+
+
+=============
+ssh -i ../terraform/global/VPC/VPC-demo-key.pem ubuntu@3.88.70.100
+ssh -i ../terraform/global/VPC/VPC-demo-key.pem ubuntu@34.200.229.162
+kubectl apply -f aws-auth-map.yml
+
+export KUBECONFIG=./kubeconfig_opsSchool-eks-4RGdbArO
