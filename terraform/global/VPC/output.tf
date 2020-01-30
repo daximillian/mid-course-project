@@ -17,3 +17,14 @@ output "config_map_aws_auth" {
   description = "A kubernetes configuration to authenticate to this EKS cluster."
   value       = module.eks.config_map_aws_auth
 }
+
+output "jenkins_server_public_address" {
+    value = aws_instance.jenkins_server.*.public_ip
+}
+output "jenkins_ubuntu-nodes_public_addresses" {
+    value = aws_instance.ubuntu-nodes.*.public_ip
+}
+
+output "consul-server_private_addresses" {
+    value = aws_instance.consul_server.*.private_ip
+}

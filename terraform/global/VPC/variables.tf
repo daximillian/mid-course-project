@@ -42,3 +42,8 @@ variable "opsschool_remote_state_key" {
   default = "stage/terraform.tfstate"
   type        = string
 }
+
+variable "consul_version" {
+  description = "The version of Consul to install (server and client)."
+  default     = "1.4.0"
+}
