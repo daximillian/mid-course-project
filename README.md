@@ -1,10 +1,12 @@
 # Mid Course Project
 Opsschool Mid Course project. Creates a VPC (on us-east-1 by default) with two availability zones, 
 each one with two subnets, one public and one private. The public subnets contain a single NAT, a 
-Jenkins master (on one subnet), and a Jenkins node (on the other). The private subnets contain an 
-EKS master and a worker group. Once the Jenkins is up and the required credentials are entered, 
-you can configure a pipeline job to get a phonebook app from git, dockerfy it, and deploy it to 
-EKS, on two pods with a load-balancer.
+Jenkins master (on one subnet), and a Jenkins node (on the other). Both Jenkins servers are configured
+as Consul clients with appropriate health checks.   
+The private subnets contain an EKS master and a worker group with two autoscaling groups, one in each subnet, 
+and also three Consul servers.   
+Once the Jenkins is up and the required credentials are entered, you can configure a pipeline job to get the 
+phonebook app from git, dockerfy it, and deploy it to EKS, on two pods with a load-balancer.
 
 # How it's done:
 Provisioning is done by terraform, as is the initial python installation on the Jenkins master and node.
@@ -53,7 +55,8 @@ You will also need a valid AWS user configured (via aws configure or exporting y
 - add git credentials.
 - configure node to work with existing ubuntu credentials and no non-verifying host strategy
 - create pipeline from scm, choose git, give it the https://github.com/daximillian/phonebook.git repo and 
-your git credentials.
+your git credentials, and set it up to be triggered by git push. Then set up a webhook in GitHub on your copy of the 
+phonebook repo.
 - run the build job.
 - After successful completion wait a minute or two for the LoadBalancer to finish provisioning. You can ssh to the 
 Jenkins node using the VPC-demo-key.pem, then `export KUBECONFIG=<path_to_the_kubeconfig_opsSchool-eks_file>` and run 

@@ -1,5 +1,5 @@
-In Ansible directory
-
+In Ansible directory:
+--------------------
 chmod 400 ../terraform/global/VPC/VPC-demo-key.pem
 ansible all -i ../terraform/global/VPC/hosts.INI -m ping
 ansible-playbook jenkins_playbook.yml -i ../terraform/global/VPC/hosts.INI 
