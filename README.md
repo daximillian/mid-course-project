@@ -52,17 +52,16 @@ You will also need a valid AWS user configured (via aws configure or exporting y
 ## To run the Jenkins playbook:
 - logon to Jenkins master on port 8080 (u/p admin)
 - add dockerhub credentials with the id "dockerhub.daximillian"
-- add git credentials.
+- add git credentials (not a must).
+- add slack credentials (using secret text) from Manage Jenkins->Configure System. Make sure to point to an appropriate channel.
+- On your copy of the phonebook repo, setup Git Webhook on push everns, using the Jenkins IP as follows: http://<jenkins_master_ip>:8080/github-webhook/   
 - configure node to work with existing ubuntu credentials and no non-verifying host strategy
 - create pipeline from scm, choose git, give it the https://github.com/daximillian/phonebook.git repo and 
-your git credentials, and set it up to be triggered by git push. Then set up a webhook in GitHub on your copy of the 
-phonebook repo.
-- run the build job.
-- After successful completion wait a minute or two for the LoadBalancer to finish provisioning. You can ssh to the 
-Jenkins node using the VPC-demo-key.pem, then `export KUBECONFIG=<path_to_the_kubeconfig_opsSchool-eks_file>` and run 
-`kubectl get svc` to get the address of the loadbalancer. You can also run the same from your workstation if you have kubectl and 
-iam-authentication installed. Alternatively you can just logon to the AWS console and see the ELB address there,
-or run `aws elb describe-load-balancers` to get the load balancer address.
+your git credentials, and set it up to be triggered by GitHub webhook SCM polling.  
+- run the build job (first run must be manual. Later runs can be manual or triggered by git push to the phonebook repo).  
+- After successful completion wait a minute or two for the LoadBalancer to finish provisioning. You will get a slack notification with the app url.  
+You can ssh to the Jenkins node using the VPC-demo-key.pem, then `export KUBECONFIG=<path_to_the_kubeconfig_opsSchool-eks_file>` and run 
+`kubectl get svc phonebook-lb -o jsonpath="{.status.loadBalancer.ingress[*]['ip', 'hostname']}"` to get the address of the loadbalancer. You can also run the same from your workstation if you have kubectl and iam-authentication installed. Alternatively you can just logon to the AWS console and see the ELB address there, or run `aws elb describe-load-balancers` to get the load balancer address.
 
 
 ## To bring everything down:
